@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>HabitMate – Find Your Habit Partner</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0d0f14; --surface: #13161e; --surface2: #1a1e2a;
+      --border: rgba(255,255,255,0.07); --accent: #c8f53d;
+      --accent2: #5bf0c4; --accent3: #ff6b6b;
+      --text: #f0f2f7; --muted: #7a8099; --card-bg: #161924;
+    }
+    html { scroll-behavior: smooth; }
+    body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 16px; line-height: 1.6; overflow-x: hidden; }
+
+    /* ── SETUP BANNER ── */
+    #setupBanner {
+      background: linear-gradient(90deg, rgba(200,245,61,0.15), rgba(91,240,196,0.1));
+      border-bottom: 1px solid rgba(200,245,61,0.3);
+      padding: 0.8rem 5%; display: flex; align-items: center; gap: 1rem;
+      flex-wrap: wrap; font-size: 0.85rem;
+    }
+    #setupBanner strong { color: var(--accent); }
+    #setupBanner code { background: rgba(0,0,0,0.3); padding: 0.1rem 0.4rem; border-radius: 4px; font-size: 0.78rem; color: var(--accent2); }
+    .dismiss-btn { margin-left: auto; background: none; border: none; color: var(--muted); cursor: pointer; font-size: 1.1rem; }
+
+    /* ── NAV ── */
+    nav {
+      position: sticky; top: 0; left: 0; right: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 1rem 5%;
+      background: rgba(13,15,20,0.95); backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+    }
+    .logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.4rem; letter-spacing: -0.5px; cursor: pointer; }
+    .logo span { color: var(--accent); }
+    .nav-right { display: flex; align-items: center; gap: 1rem; }
+    .nav-link { color: var(--muted); background: none; border: none; font-size: 0.9rem; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: color .2s; }
+    .nav-link:hover { color: var(--text); }
+    .nav-cta {
+      background: var(--accent); color: #0d0f14; border: none; border-radius: 100px;
+      padding: 0.55rem 1.3rem; font-family: 'Syne', sans-serif;
+      font-weight: 700; font-size: 0.82rem; cursor: pointer; transition: transform .15s, box-shadow .15s;
+    }
+    .nav-cta:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(200,245,61,0.3); }
+    .avatar-btn {
+      width: 36px; height: 36px; border-radius: 50%; background: var(--surface2);
+      border: 2px solid var(--accent); font-size: 1rem; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    /* ── PAGES ── */
+    .page { display: none; }
+    .page.active { display: block; }
+
+    /* ── LANDING ── */
+    .hero {
+      min-height: 90vh; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; text-align: center;
+      padding: 5rem 5% 4rem; position: relative; overflow: hidden;
+    }
+    .hero-bg {
+      position: absolute; inset: 0;
+      background: radial-gradient(ellipse 60% 50% at 20% 40%, rgba(200,245,61,0.06) 0%, transparent 70%),
+                  radial-gradient(ellipse 50% 40% at 80% 60%, rgba(91,240,196,0.05) 0%, transparent 70%);
+    }
+    .hero-grid {
+      position: absolute; inset: 0;
+      background-image: linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+                        linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+      background-size: 60px 60px;
+    }
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      background: rgba(200,245,61,0.1); border: 1px solid rgba(200,245,61,0.25);
+      border-radius: 100px; padding: 0.4rem 1rem;
+      font-size: 0.78rem; font-weight: 500; color: var(--accent);
+      margin-bottom: 2rem; position: relative; z-index: 1;
+    }
+    .badge-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(1.4)} }
+    h1 {
+      font-family: 'Syne', sans-serif; font-size: clamp(2.5rem, 6vw, 5rem);
+      font-weight: 800; line-height: 1.05; letter-spacing: -2px;
+      position: relative; z-index: 1;
+    }
+    h1 em { font-style: normal; color: var(--accent); }
+    h1 .line2 { color: var(--accent2); }
+    .hero-sub { max-width: 500px; margin: 1.5rem auto 2.5rem; font-size: 1.05rem; color: var(--muted); position: relative; z-index: 1; }
+    .hero-actions { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; position: relative; z-index: 1; }
+    .btn-primary {
+      background: var(--accent); color: #0d0f14; border: none; border-radius: 100px;
+      padding: 0.85rem 2rem; font-family: 'Syne', sans-serif; font-weight: 700; font-size: 1rem; cursor: pointer;
+      transition: transform .15s, box-shadow .15s;
+    }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(200,245,61,0.35); }
+    .btn-outline {
+      background: transparent; color: var(--text); border: 1px solid var(--border); border-radius: 100px;
+      padding: 0.85rem 2rem; font-family: 'Syne', sans-serif; font-weight: 600; font-size: 1rem; cursor: pointer;
+      transition: border-color .2s, background .2s;
+    }
+    .btn-outline:hover { border-color: rgba(255,255,255,0.25); background: rgba(255,255,255,0.04); }
+
+    .floating-pills { position: absolute; inset: 0; pointer-events: none; z-index: 0; }
+    .pill {
+      position: absolute; background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 100px; padding: 0.45rem 1rem; font-size: 0.8rem; color: var(--muted);
+      display: flex; align-items: center; gap: 0.4rem; animation: float linear infinite; white-space: nowrap;
+    }
+    @keyframes float {
+      0%{transform:translateY(0) rotate(var(--rot));opacity:.5}
+      50%{transform:translateY(-18px) rotate(var(--rot));opacity:.8}
+      100%{transform:translateY(0) rotate(var(--rot));opacity:.5}
+    }
+
+    /* ── AUTH MODAL ── */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 200;
+      display: none; align-items: center; justify-content: center; padding: 1rem;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 1.5rem;
+      padding: 2.5rem; width: 100%; max-width: 420px;
+      animation: fadeUp 0.3s ease both;
+    }
+    @keyframes fadeUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:none} }
+    .modal h2 { font-family: 'Syne', sans-serif; font-size: 1.6rem; font-weight: 800; margin-bottom: 0.4rem; }
+    .modal p { color: var(--muted); font-size: 0.9rem; margin-bottom: 1.8rem; }
+    .form-group { margin-bottom: 1rem; }
+    .form-group label { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 0.4rem; }
+    .form-group input, .form-group select, .form-group textarea {
+      width: 100%; background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 0.75rem; padding: 0.75rem 1rem; color: var(--text);
+      font-family: 'DM Sans', sans-serif; font-size: 0.95rem; transition: border-color .2s;
+    }
+    .form-group input:focus, .form-group select:focus { outline: none; border-color: rgba(200,245,61,0.4); }
+    .form-group select option { background: var(--surface2); }
+    .modal-btn {
+      width: 100%; background: var(--accent); color: #0d0f14; border: none; border-radius: 100px;
+      padding: 0.9rem; font-family: 'Syne', sans-serif; font-weight: 700; font-size: 1rem;
+      cursor: pointer; margin-top: 0.5rem; transition: opacity .2s;
+    }
+    .modal-btn:hover { opacity: 0.9; }
+    .modal-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .modal-switch { text-align: center; margin-top: 1.2rem; font-size: 0.85rem; color: var(--muted); }
+    .modal-switch a { color: var(--accent); cursor: pointer; text-decoration: none; }
+    .modal-close { float: right; background: none; border: none; color: var(--muted); font-size: 1.4rem; cursor: pointer; margin-top: -0.5rem; }
+    .auth-error { background: rgba(255,107,107,0.1); border: 1px solid rgba(255,107,107,0.3); border-radius: 0.75rem; padding: 0.75rem 1rem; font-size: 0.85rem; color: var(--accent3); margin-bottom: 1rem; display: none; }
+    .auth-success { background: rgba(91,240,196,0.1); border: 1px solid rgba(91,240,196,0.3); border-radius: 0.75rem; padding: 0.75rem 1rem; font-size: 0.85rem; color: var(--accent2); margin-bottom: 1rem; display: none; }
+
+    /* ── ONBOARDING ── */
+    #onboardPage { padding: 5rem 5%; max-width: 680px; margin: 0 auto; }
+    #onboardPage h2 { font-family: 'Syne', sans-serif; font-size: 2rem; font-weight: 800; margin-bottom: 0.5rem; }
+    #onboardPage .sub { color: var(--muted); margin-bottom: 2.5rem; }
+    .step-indicator { display: flex; gap: 0.5rem; margin-bottom: 2rem; }
+    .step-dot { height: 4px; border-radius: 2px; background: var(--border); flex: 1; transition: background .3s; }
+    .step-dot.done { background: var(--accent); }
+    .onboard-step { display: none; }
+    .onboard-step.active { display: block; }
+    .habit-select-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 0.8rem; margin: 1.5rem 0;
+    }
+    .habit-sel-card {
+      background: var(--card-bg); border: 1px solid var(--border); border-radius: 1rem;
+      padding: 1.2rem 0.8rem; text-align: center; cursor: pointer; transition: all .2s;
+    }
+    .habit-sel-card:hover { border-color: rgba(200,245,61,0.3); }
+    .habit-sel-card.selected { border-color: var(--accent); background: rgba(200,245,61,0.08); }
+    .habit-sel-card .icon { font-size: 1.8rem; margin-bottom: 0.4rem; }
+    .habit-sel-card .name { font-family: 'Syne', sans-serif; font-size: 0.82rem; font-weight: 700; }
+    .schedule-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin: 1.5rem 0; }
+    .sched-card {
+      background: var(--card-bg); border: 1px solid var(--border); border-radius: 1rem;
+      padding: 1.5rem 1rem; text-align: center; cursor: pointer; transition: all .2s;
+    }
+    .sched-card:hover { border-color: rgba(200,245,61,0.3); }
+    .sched-card.selected { border-color: var(--accent); background: rgba(200,245,61,0.08); }
+    .sched-card .s-icon { font-size: 2rem; margin-bottom: 0.5rem; }
+    .sched-card .s-name { font-family: 'Syne', sans-serif; font-size: 0.85rem; font-weight: 700; }
+    .onboard-nav { display: flex; justify-content: space-between; margin-top: 2rem; gap: 1rem; }
+    .btn-back { background: transparent; border: 1px solid var(--border); color: var(--muted); border-radius: 100px; padding: 0.75rem 1.5rem; font-family: 'Syne', sans-serif; font-weight: 600; cursor: pointer; }
+
+    /* ── DASHBOARD ── */
+    #dashPage { padding: 2rem 5%; }
+    .dash-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem; }
+    .dash-header h2 { font-family: 'Syne', sans-serif; font-size: 1.6rem; font-weight: 800; }
+    .dash-header .greeting { color: var(--muted); font-size: 0.9rem; margin-top: 0.2rem; }
+    .dash-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem; }
+    @media(max-width:900px){ .dash-grid { grid-template-columns: 1fr 1fr; } }
+    @media(max-width:600px){ .dash-grid { grid-template-columns: 1fr; } }
+    .dash-card {
+      background: var(--card-bg); border: 1px solid var(--border); border-radius: 1.5rem; padding: 1.5rem;
+    }
+    .dash-card h3 { font-family: 'Syne', sans-serif; font-size: 0.85rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.8rem; }
+    .stat-big { font-family: 'Syne', sans-serif; font-size: 2.5rem; font-weight: 800; color: var(--accent); }
+    .stat-label { font-size: 0.82rem; color: var(--muted); }
+    .streak-bar { display: flex; gap: 3px; margin-top: 0.8rem; }
+    .streak-day { width: 18px; height: 18px; border-radius: 4px; background: var(--surface2); }
+    .streak-day.done { background: var(--accent); }
+    .streak-day.today { background: var(--accent2); }
+
+    /* Matches in dashboard */
+    .matches-section { margin-top: 2rem; }
+    .matches-section h3 { font-family: 'Syne', sans-serif; font-size: 1.2rem; font-weight: 800; margin-bottom: 1rem; }
+    .match-filters { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1.2rem; }
+    .mf-pill {
+      background: var(--surface2); border: 1px solid var(--border); border-radius: 100px;
+      padding: 0.35rem 0.9rem; font-size: 0.8rem; cursor: pointer; transition: all .2s;
+    }
+    .mf-pill.on { background: rgba(200,245,61,0.1); border-color: var(--accent); color: var(--accent); }
+    .matches-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
+    .match-card {
+      background: var(--card-bg); border: 1px solid var(--border); border-radius: 1.2rem;
+      padding: 1.2rem; display: flex; gap: 1rem; align-items: flex-start;
+      transition: all .2s; cursor: pointer;
+    }
+    .match-card:hover { border-color: rgba(91,240,196,0.3); transform: translateY(-2px); }
+    .m-avatar { width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; flex-shrink: 0; }
+    .m-name { font-family: 'Syne', sans-serif; font-size: 0.95rem; font-weight: 700; }
+    .m-habits { font-size: 0.78rem; color: var(--muted); margin: 0.2rem 0 0.6rem; }
+    .m-score { display: inline-block; background: rgba(91,240,196,0.1); border: 1px solid rgba(91,240,196,0.3); border-radius: 100px; padding: 0.2rem 0.6rem; font-size: 0.75rem; font-weight: 700; color: var(--accent2); }
+    .m-connect {
+      margin-top: 0.5rem; background: transparent; border: 1px solid var(--accent);
+      color: var(--accent); border-radius: 100px; padding: 0.3rem 0.8rem;
+      font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all .2s;
+    }
+    .m-connect:hover { background: rgba(200,245,61,0.1); }
+    .m-connect.sent { opacity: 0.5; pointer-events: none; }
+
+    /* My habits widget */
+    .my-habits-list { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.5rem; }
+    .my-habit-tag {
+      background: rgba(200,245,61,0.08); border: 1px solid rgba(200,245,61,0.2);
+      border-radius: 100px; padding: 0.3rem 0.8rem; font-size: 0.8rem; color: var(--accent);
+    }
+
+    /* Checkin */
+    .checkin-btn {
+      width: 100%; margin-top: 1rem; background: var(--accent2); color: #0d0f14;
+      border: none; border-radius: 100px; padding: 0.75rem; font-family: 'Syne', sans-serif;
+      font-weight: 700; font-size: 0.9rem; cursor: pointer; transition: opacity .2s;
+    }
+    .checkin-btn:hover { opacity: 0.9; }
+    .checkin-btn.done { background: var(--surface2); color: var(--muted); pointer-events: none; }
+
+    /* Connections */
+    .connections-list { margin-top: 2rem; }
+    .connections-list h3 { font-family: 'Syne', sans-serif; font-size: 1.2rem; font-weight: 800; margin-bottom: 1rem; }
+    .conn-card {
+      background: var(--card-bg); border: 1px solid var(--border); border-radius: 1.2rem;
+      padding: 1rem 1.2rem; display: flex; align-items: center; gap: 1rem; margin-bottom: 0.8rem;
+    }
+    .conn-streak { font-family: 'Syne', sans-serif; font-size: 0.85rem; color: var(--accent); font-weight: 700; margin-left: auto; }
+
+    /* Loading */
+    .loading { text-align: center; padding: 3rem; color: var(--muted); font-size: 0.9rem; }
+    .spinner { display: inline-block; width: 24px; height: 24px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; margin-bottom: 0.5rem; }
+    @keyframes spin { to{transform:rotate(360deg)} }
+
+    /* Toast */
+    #toast {
+      position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(100px);
+      background: var(--surface); border: 1px solid var(--border); border-radius: 100px;
+      padding: 0.75rem 1.5rem; font-size: 0.9rem; z-index: 300;
+      transition: transform .3s ease; white-space: nowrap;
+    }
+    #toast.show { transform: translateX(-50%) translateY(0); }
+
+    /* LANDING sections */
+    .how-section { background: var(--surface); padding: 5rem 5%; }
+    .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.5rem; margin-top: 3rem; }
+    .step-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 1.5rem; padding: 2rem; transition: transform .25s, border-color .25s; }
+    .step-card:hover { transform: translateY(-4px); border-color: rgba(200,245,61,0.2); }
+    .step-num { font-family: 'Syne', sans-serif; font-size: 3rem; font-weight: 800; color: rgba(200,245,61,0.12); line-height: 1; margin-bottom: 1rem; }
+    .step-card h3 { font-family: 'Syne', sans-serif; font-size: 1.1rem; font-weight: 700; margin-bottom: 0.5rem; }
+    .step-card p { font-size: 0.9rem; color: var(--muted); }
+    .section-tag { display: inline-block; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); margin-bottom: 0.8rem; }
+    .section-title { font-family: 'Syne', sans-serif; font-size: clamp(1.8rem, 4vw, 2.8rem); font-weight: 800; letter-spacing: -1px; line-height: 1.1; margin-bottom: 0.8rem; }
+    .cta-strip { background: linear-gradient(135deg, rgba(200,245,61,0.08), rgba(91,240,196,0.06)); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); text-align: center; padding: 6rem 5%; }
+    footer { background: var(--surface); border-top: 1px solid var(--border); padding: 2.5rem 5%; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; }
+    .footer-logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.1rem; }
+    .footer-logo span { color: var(--accent); }
+    footer p { font-size: 0.82rem; color: var(--muted); }
+
+    @media(max-width:600px){
+      .schedule-options { grid-template-columns: 1fr; }
+      nav ul { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+
+
+<!-- NAV -->
+<nav>
+  <div class="logo" onclick="showPage('landing')">Habit<span>Mate</span></div>
+  <div class="nav-right" id="navRight">
+    <button class="nav-link" onclick="openModal('login')">Sign in</button>
+    <button class="nav-cta" onclick="openModal('signup')">Join Free</button>
+  </div>
+</nav>
+
+<!-- ════════════════════ LANDING PAGE ════════════════════ -->
+<div id="landingPage" class="page active">
+  <section class="hero">
+    <div class="hero-bg"></div>
+    <div class="hero-grid"></div>
+    <div class="floating-pills">
+      <div class="pill" style="left:8%;top:25%;--rot:-4deg;animation-duration:5.5s"><span>🏋️</span> Morning Workout</div>
+      <div class="pill" style="right:9%;top:20%;--rot:3deg;animation-duration:6s;animation-delay:1s"><span>📚</span> Daily Reading</div>
+      <div class="pill" style="left:5%;bottom:30%;--rot:-2deg;animation-duration:7s;animation-delay:.5s"><span>🧘</span> Meditation</div>
+      <div class="pill" style="right:7%;bottom:35%;--rot:5deg;animation-duration:5s;animation-delay:1.5s"><span>🥗</span> Healthy Eating</div>
+      <div class="pill" style="left:30%;top:12%;--rot:2deg;animation-duration:6.5s;animation-delay:2s"><span>💧</span> Hydration</div>
+      <div class="pill" style="right:28%;bottom:15%;--rot:-3deg;animation-duration:5.8s;animation-delay:.8s"><span>🚶</span> 10k Steps</div>
+    </div>
+    <div class="hero-badge"><div class="badge-dot"></div> Real accountability partners, real results</div>
+    <h1>Find people who share<br><em>your habits</em><br><span class="line2">&amp; grow together</span></h1>
+    <p class="hero-sub">Create your profile, pick your habits, and get matched with real accountability partners who keep you going.</p>
+    <div class="hero-actions">
+      <button class="btn-primary" onclick="openModal('signup')">Create Free Account →</button>
+      <button class="btn-outline" onclick="openModal('login')">Sign In</button>
+    </div>
+  </section>
+
+  <section class="how-section">
+    <div class="section-tag">How it works</div>
+    <div class="section-title">Three steps to your habit partner</div>
+    <div class="steps">
+      <div class="step-card"><div class="step-num">01</div><h3>Create Your Profile</h3><p>Sign up, pick your habits, and set your preferred schedule. Takes under 2 minutes.</p></div>
+      <div class="step-card"><div class="step-num">02</div><h3>Get Matched</h3><p>We surface the most compatible partners based on your habits and schedule.</p></div>
+      <div class="step-card"><div class="step-num">03</div><h3>Grow Together</h3><p>Connect, log daily check-ins, and build streaks alongside your habit partner.</p></div>
+    </div>
+  </section>
+
+  <div class="cta-strip">
+    <div class="section-tag">Free forever</div>
+    <div class="section-title">Your habit partner is already here</div>
+    <p style="color:var(--muted);margin:0.8rem auto 2rem;max-width:400px">Join thousands building better habits together. No credit card needed.</p>
+    <button class="btn-primary" style="font-size:1.05rem;padding:1rem 2.5rem" onclick="openModal('signup')">Start Matching for Free →</button>
+  </div>
+
+  <footer>
+    <div class="footer-logo">Habit<span>Mate</span></div>
+    <p>© 2026 HabitMate. All rights reserved.</p>
+  </footer>
+</div>
+
+<!-- ════════════════════ ONBOARDING PAGE ════════════════════ -->
+<div id="onboardPage" class="page">
+  <div class="step-indicator">
+    <div class="step-dot done" id="sd1"></div>
+    <div class="step-dot" id="sd2"></div>
+    <div class="step-dot" id="sd3"></div>
+  </div>
+
+  <!-- Step 1: Name & Bio -->
+  <div class="onboard-step active" id="os1">
+    <h2>Welcome! Let's set up your profile 👋</h2>
+    <p class="sub">This helps others know who they're matching with.</p>
+    <div class="form-group"><label>Display name</label><input id="ob-name" type="text" placeholder="e.g. Alex R." /></div>
+    <div class="form-group"><label>Short bio (optional)</label><textarea id="ob-bio" rows="3" placeholder="e.g. Runner, reader, trying to meditate every day..." style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:.75rem;padding:.75rem 1rem;color:var(--text);font-family:DM Sans,sans-serif;resize:vertical"></textarea></div>
+    <div class="form-group"><label>Location (optional)</label><input id="ob-location" type="text" placeholder="e.g. Istanbul, Turkey" /></div>
+    <div class="onboard-nav">
+      <div></div>
+      <button class="btn-primary" onclick="onboardNext(1)">Next →</button>
+    </div>
+  </div>
+
+  <!-- Step 2: Pick Habits -->
+  <div class="onboard-step" id="os2">
+    <h2>Which habits are you building? 🌱</h2>
+    <p class="sub">Pick at least one. You can update these anytime.</p>
+    <div class="habit-select-grid" id="habitSelectGrid"></div>
+    <div class="onboard-nav">
+      <button class="btn-back" onclick="onboardBack(2)">← Back</button>
+      <button class="btn-primary" onclick="onboardNext(2)">Next →</button>
+    </div>
+  </div>
+
+  <!-- Step 3: Schedule -->
+  <div class="onboard-step" id="os3">
+    <h2>When do you practice your habits? ⏰</h2>
+    <p class="sub">We'll match you with people who share your schedule.</p>
+    <div class="schedule-options">
+      <div class="sched-card" onclick="selectSchedule(this,'morning')"><div class="s-icon">🌅</div><div class="s-name">Morning</div><div style="font-size:.78rem;color:var(--muted);margin-top:.3rem">5am – 11am</div></div>
+      <div class="sched-card" onclick="selectSchedule(this,'afternoon')"><div class="s-icon">☀️</div><div class="s-name">Afternoon</div><div style="font-size:.78rem;color:var(--muted);margin-top:.3rem">11am – 5pm</div></div>
+      <div class="sched-card" onclick="selectSchedule(this,'evening')"><div class="s-icon">🌙</div><div class="s-name">Evening</div><div style="font-size:.78rem;color:var(--muted);margin-top:.3rem">5pm – 11pm</div></div>
+    </div>
+    <div class="onboard-nav">
+      <button class="btn-back" onclick="onboardBack(3)">← Back</button>
+      <button class="btn-primary" id="finishBtn" onclick="finishOnboarding()">Find My Matches →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════ DASHBOARD PAGE ════════════════════ -->
+<div id="dashPage" class="page">
+  <div class="dash-header">
+    <div>
+      <h2 id="dashGreeting">Good morning 👋</h2>
+      <div class="greeting" id="dashSub">Here's your habit overview</div>
+    </div>
+    <button class="btn-outline" style="padding:.5rem 1.2rem;font-size:.85rem" onclick="signOut()">Sign out</button>
+  </div>
+
+  <div class="dash-grid">
+    <!-- Streak card -->
+    <div class="dash-card">
+      <h3>🔥 Current Streak</h3>
+      <div class="stat-big" id="streakNum">0</div>
+      <div class="stat-label">days in a row</div>
+      <div class="streak-bar" id="streakBar"></div>
+      <button class="checkin-btn" id="checkinBtn" onclick="doCheckin()">✓ Check in today</button>
+    </div>
+    <!-- My habits card -->
+    <div class="dash-card">
+      <h3>🌱 My Habits</h3>
+      <div class="my-habits-list" id="myHabitsList"><div class="stat-label">Loading...</div></div>
+    </div>
+    <!-- Connections card -->
+    <div class="dash-card">
+      <h3>🤝 Partners</h3>
+      <div class="stat-big" id="partnersNum">0</div>
+      <div class="stat-label">habit partners</div>
+    </div>
+  </div>
+
+  <!-- Matches -->
+  <div class="matches-section">
+    <h3>✨ Suggested Matches</h3>
+    <div class="match-filters" id="dashFilters"></div>
+    <div class="matches-grid" id="dashMatches"><div class="loading"><div class="spinner"></div><br>Finding your matches...</div></div>
+  </div>
+
+  <!-- Connections -->
+  <div class="connections-list">
+    <h3>🤝 My Connections</h3>
+    <div id="connectionsList"><div class="loading">Loading connections...</div></div>
+  </div>
+</div>
+
+<!-- ════════════════════ AUTH MODAL ════════════════════ -->
+<div class="modal-overlay" id="authModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div id="loginForm">
+      <h2>Welcome back 👋</h2>
+      <p>Sign in to find your habit partners</p>
+      <div class="auth-error" id="loginError"></div>
+      <div class="auth-success" id="loginSuccess"></div>
+      <div class="form-group"><label>Email</label><input id="loginEmail" type="email" placeholder="you@example.com"/></div>
+      <div class="form-group"><label>Password</label><input id="loginPass" type="password" placeholder="••••••••"/></div>
+      <button class="modal-btn" id="loginBtn" onclick="doLogin()">Sign In</button>
+      <div class="modal-switch">Don't have an account? <a onclick="switchModal('signup')">Sign up free</a></div>
+    </div>
+    <div id="signupForm" style="display:none">
+      <h2>Join HabitMate 🌱</h2>
+      <p>Create your free account and find your match</p>
+      <div class="auth-error" id="signupError"></div>
+      <div class="auth-success" id="signupSuccess"></div>
+      <div class="form-group"><label>Email</label><input id="signupEmail" type="email" placeholder="you@example.com"/></div>
+      <div class="form-group"><label>Password</label><input id="signupPass" type="password" placeholder="Min. 6 characters"/></div>
+      <button class="modal-btn" id="signupBtn" onclick="doSignup()">Create Account</button>
+      <div class="modal-switch">Already have an account? <a onclick="switchModal('login')">Sign in</a></div>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════════════════
+//  CONFIGURATION — replace with your Supabase credentials
+// ══════════════════════════════════════════════════════════
+
+const SUPABASE_URL  = 'URL';
+const SUPABASE_ANON = 'SUPABASE_ANON';
+
+
+
+// ══════════════════════════════════════════════════════════
+//  SUPABASE SQL SETUP (run once in your Supabase SQL editor)
+// ══════════════════════════════════════════════════════════
+/*
+-- Users profile table
+create table profiles (
+  id uuid references auth.users on delete cascade primary key,
+  name text,
+  bio text,
+  location text,
+  schedule text,
+  avatar_emoji text default '🧑',
+  created_at timestamp with time zone default now()
+);
+
+-- Habit categories
+create table habits (
+  id serial primary key,
+  icon text, name text
+);
+insert into habits (icon, name) values
+  ('🏋️','Fitness'),('📚','Reading'),('🧘','Meditation'),('🥗','Nutrition'),
+  ('💧','Hydration'),('🚶','Walking'),('✍️','Journaling'),('💻','Coding'),
+  ('🎨','Art & Create'),('🌱','Sustainability'),('😴','Sleep'),('🧠','Learning');
+
+-- User ↔ habit link
+create table user_habits (
+  user_id uuid references profiles(id) on delete cascade,
+  habit_id int references habits(id),
+  primary key (user_id, habit_id)
+);
+
+-- Connections between users
+create table connections (
+  id serial primary key,
+  from_user uuid references profiles(id),
+  to_user uuid references profiles(id),
+  status text default 'pending',
+  created_at timestamp with time zone default now()
+);
+
+-- Daily check-ins
+create table checkins (
+  id serial primary key,
+  user_id uuid references profiles(id),
+  checked_date date default current_date,
+  unique(user_id, checked_date)
+);
+
+-- Enable Row Level Security
+alter table profiles enable row level security;
+alter table user_habits enable row level security;
+alter table connections enable row level security;
+alter table checkins enable row level security;
+
+-- Policies: users can read all profiles (for matching), write own
+create policy "Public profiles" on profiles for select using (true);
+create policy "Own profile" on profiles for all using (auth.uid() = id);
+create policy "Public user_habits" on user_habits for select using (true);
+create policy "Own user_habits" on user_habits for all using (auth.uid() = user_id);
+create policy "Public connections" on connections for select using (true);
+create policy "Own connections" on connections for all using (auth.uid() = from_user);
+create policy "Own checkins" on checkins for all using (auth.uid() = user_id);
+create policy "Public checkins read" on checkins for select using (true);
+*/
+
+// ══════════════════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════════════════
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+let currentUser = null;
+let currentProfile = null;
+let allHabits = [];
+let selectedHabits = [];
+let selectedSchedule = '';
+const AVATARS = ['🧑','👩','👨','🧕','🧔','👱','🧓','👴','👵','🙋','🙍','🧑‍💻'];
+
+const HABIT_LIST = [
+  {icon:'🏋️',name:'Fitness'},{icon:'📚',name:'Reading'},{icon:'🧘',name:'Meditation'},
+  {icon:'🥗',name:'Nutrition'},{icon:'💧',name:'Hydration'},{icon:'🚶',name:'Walking'},
+  {icon:'✍️',name:'Journaling'},{icon:'💻',name:'Coding'},{icon:'🎨',name:'Art & Create'},
+  {icon:'🌱',name:'Sustainability'},{icon:'😴',name:'Sleep'},{icon:'🧠',name:'Learning'}
+];
+
+// ── Auth state listener
+db.auth.onAuthStateChange(async (event, session) => {
+  if (session?.user) {
+    currentUser = session.user;
+    updateNav(true);
+    const { data: profile } = await db.from('profiles').select('*').eq('id', currentUser.id).single();
+    if (!profile || !profile.name) {
+      showPage('onboard');
+    } else {
+      currentProfile = profile;
+      showPage('dashboard');
+      loadDashboard();
+    }
+  } else {
+    currentUser = null;
+    currentProfile = null;
+    updateNav(false);
+  }
+});
+
+// ── Nav
+function updateNav(loggedIn) {
+  const navRight = document.getElementById('navRight');
+  if (loggedIn) {
+    navRight.innerHTML = `
+      <span style="font-size:.85rem;color:var(--muted)">${currentUser.email?.split('@')[0]}</span>
+      <div class="avatar-btn" onclick="showPage('dashboard')" title="Dashboard">🧑</div>
+    `;
+  } else {
+    navRight.innerHTML = `
+      <button class="nav-link" onclick="openModal('login')">Sign in</button>
+      <button class="nav-cta" onclick="openModal('signup')">Join Free</button>
+    `;
+  }
+}
+
+// ── Pages
+function showPage(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  const map = { landing: 'landingPage', onboard: 'onboardPage', dashboard: 'dashPage' };
+  document.getElementById(map[page])?.classList.add('active');
+  window.scrollTo(0, 0);
+}
+
+// ── Modal
+function openModal(type) { switchModal(type); document.getElementById('authModal').classList.add('open'); }
+function closeModal() { document.getElementById('authModal').classList.remove('open'); }
+function switchModal(type) {
+  document.getElementById('loginForm').style.display = type === 'login' ? 'block' : 'none';
+  document.getElementById('signupForm').style.display = type === 'signup' ? 'block' : 'none';
+}
+
+// ── Auth
+async function doSignup() {
+  const email = document.getElementById('signupEmail').value.trim();
+  const pass  = document.getElementById('signupPass').value;
+  const btn   = document.getElementById('signupBtn');
+  const err   = document.getElementById('signupError');
+  const suc   = document.getElementById('signupSuccess');
+  err.style.display = 'none'; suc.style.display = 'none';
+  if (!email || !pass) { showErr(err, 'Please fill in all fields.'); return; }
+  btn.disabled = true; btn.textContent = 'Creating account...';
+  const { error } = await db.auth.signUp({ email, password: pass });
+  btn.disabled = false; btn.textContent = 'Create Account';
+  if (error) { showErr(err, error.message); return; }
+  suc.style.display = 'block'; suc.textContent = '✓ Account created! Check your email to verify, then sign in.';
+}
+
+async function doLogin() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass  = document.getElementById('loginPass').value;
+  const btn   = document.getElementById('loginBtn');
+  const err   = document.getElementById('loginError');
+  err.style.display = 'none';
+  if (!email || !pass) { showErr(err, 'Please fill in all fields.'); return; }
+  btn.disabled = true; btn.textContent = 'Signing in...';
+  const { error } = await db.auth.signInWithPassword({ email, password: pass });
+  btn.disabled = false; btn.textContent = 'Sign In';
+  if (error) { showErr(err, error.message); return; }
+  closeModal();
+}
+
+async function signOut() {
+  await db.auth.signOut();
+  currentUser = null; currentProfile = null;
+  showPage('landing');
+  updateNav(false);
+  showToast('Signed out. See you soon! 👋');
+}
+
+function showErr(el, msg) { el.style.display = 'block'; el.textContent = msg; }
+
+// ── ONBOARDING
+function buildHabitGrid() {
+  const grid = document.getElementById('habitSelectGrid');
+  grid.innerHTML = '';
+  HABIT_LIST.forEach(h => {
+    const el = document.createElement('div');
+    el.className = 'habit-sel-card';
+    el.innerHTML = `<div class="icon">${h.icon}</div><div class="name">${h.name}</div>`;
+    el.addEventListener('click', () => {
+      el.classList.toggle('selected');
+      selectedHabits = Array.from(grid.querySelectorAll('.selected')).map(c => c.querySelector('.name').textContent);
+    });
+    grid.appendChild(el);
+  });
+}
+buildHabitGrid();
+
+function selectSchedule(el, val) {
+  document.querySelectorAll('.sched-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedSchedule = val;
+}
+
+function onboardNext(step) {
+  if (step === 1) {
+    const name = document.getElementById('ob-name').value.trim();
+    if (!name) { showToast('Please enter your display name'); return; }
+    document.getElementById('os1').classList.remove('active');
+    document.getElementById('os2').classList.add('active');
+    document.getElementById('sd2').classList.add('done');
+  } else if (step === 2) {
+    if (selectedHabits.length === 0) { showToast('Pick at least one habit!'); return; }
+    document.getElementById('os2').classList.remove('active');
+    document.getElementById('os3').classList.add('active');
+    document.getElementById('sd3').classList.add('done');
+  }
+}
+
+function onboardBack(step) {
+  if (step === 2) {
+    document.getElementById('os2').classList.remove('active');
+    document.getElementById('os1').classList.add('active');
+    document.getElementById('sd2').classList.remove('done');
+  } else if (step === 3) {
+    document.getElementById('os3').classList.remove('active');
+    document.getElementById('os2').classList.add('active');
+    document.getElementById('sd3').classList.remove('done');
+  }
+}
+
+async function finishOnboarding() {
+  if (!selectedSchedule) { showToast('Please select a schedule'); return; }
+  const btn = document.getElementById('finishBtn');
+  btn.disabled = true; btn.textContent = 'Saving...';
+
+  const name = document.getElementById('ob-name').value.trim();
+  const bio  = document.getElementById('ob-bio').value.trim();
+  const loc  = document.getElementById('ob-location').value.trim();
+  const avatar = AVATARS[Math.floor(Math.random() * AVATARS.length)];
+
+  // Save profile
+  const { error: pe } = await db.from('profiles').upsert({
+    id: currentUser.id, name, bio, location: loc, schedule: selectedSchedule, avatar_emoji: avatar
+  });
+  if (pe) { showToast('Error saving profile: ' + pe.message); btn.disabled = false; btn.textContent = 'Find My Matches →'; return; }
+
+  // Save habits — get habit IDs first
+  const { data: habitData } = await db.from('habits').select('id, name');
+  const habitRows = selectedHabits
+    .map(hn => habitData?.find(h => h.name === hn))
+    .filter(Boolean)
+    .map(h => ({ user_id: currentUser.id, habit_id: h.id }));
+
+  if (habitRows.length > 0) {
+    await db.from('user_habits').delete().eq('user_id', currentUser.id);
+    await db.from('user_habits').insert(habitRows);
+  }
+
+  currentProfile = { id: currentUser.id, name, bio, location: loc, schedule: selectedSchedule, avatar_emoji: avatar };
+  btn.disabled = false;
+  showPage('dashboard');
+  loadDashboard();
+  showToast('Profile saved! Finding your matches... ✨');
+}
+
+// ── DASHBOARD
+async function loadDashboard() {
+  const hour = new Date().getHours();
+  const greet = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+  document.getElementById('dashGreeting').textContent = `${greet}, ${currentProfile?.name?.split(' ')[0] || 'there'} 👋`;
+
+  loadStreak();
+  loadMyHabits();
+  loadMatches();
+  loadConnections();
+}
+
+async function loadStreak() {
+  const { data } = await db.from('checkins').select('checked_date').eq('user_id', currentUser.id).order('checked_date', { ascending: false }).limit(30);
+  const dates = data?.map(d => d.checked_date) || [];
+  const today = new Date().toISOString().split('T')[0];
+  const checkedToday = dates.includes(today);
+
+  // Calculate streak
+  let streak = 0;
+  let d = new Date();
+  if (!checkedToday) d.setDate(d.getDate() - 1);
+  while (true) {
+    const ds = d.toISOString().split('T')[0];
+    if (dates.includes(ds)) { streak++; d.setDate(d.getDate() - 1); } else break;
+  }
+
+  document.getElementById('streakNum').textContent = streak;
+
+  // Last 7 days bar
+  const bar = document.getElementById('streakBar');
+  bar.innerHTML = '';
+  for (let i = 6; i >= 0; i--) {
+    const dd = new Date(); dd.setDate(dd.getDate() - i);
+    const ds = dd.toISOString().split('T')[0];
+    const div = document.createElement('div');
+    div.className = 'streak-day' + (ds === today ? ' today' : dates.includes(ds) ? ' done' : '');
+    div.title = ds;
+    bar.appendChild(div);
+  }
+
+  const btn = document.getElementById('checkinBtn');
+  if (checkedToday) { btn.className = 'checkin-btn done'; btn.textContent = '✓ Checked in today'; }
+  else { btn.className = 'checkin-btn'; btn.textContent = '✓ Check in today'; }
+}
+
+async function doCheckin() {
+  const today = new Date().toISOString().split('T')[0];
+  const { error } = await db.from('checkins').insert({ user_id: currentUser.id, checked_date: today });
+  if (error) { showToast('Already checked in today! 🎉'); return; }
+  showToast('Check-in logged! 🔥 Keep it up!');
+  loadStreak();
+}
+
+async function loadMyHabits() {
+  const { data } = await db.from('user_habits').select('habits(icon, name)').eq('user_id', currentUser.id);
+  const list = document.getElementById('myHabitsList');
+  if (!data || data.length === 0) { list.innerHTML = '<div class="stat-label">No habits yet</div>'; return; }
+  list.innerHTML = data.map(r => `<span class="my-habit-tag">${r.habits.icon} ${r.habits.name}</span>`).join('');
+}
+
+async function loadMatches() {
+  const container = document.getElementById('dashMatches');
+  container.innerHTML = '<div class="loading"><div class="spinner"></div><br>Finding matches...</div>';
+
+  // Get my habits
+  const { data: myHabits } = await db.from('user_habits').select('habit_id').eq('user_id', currentUser.id);
+  const myHabitIds = myHabits?.map(h => h.habit_id) || [];
+
+  // Get all other users with overlapping habits
+  const { data: matches } = await supabase
+    .from('user_habits')
+    .select('user_id, habit_id, profiles(id, name, bio, location, schedule, avatar_emoji)')
+    .in('habit_id', myHabitIds.length > 0 ? myHabitIds : [0])
+    .neq('user_id', currentUser.id);
+
+  if (!matches || matches.length === 0) {
+    container.innerHTML = '<div class="loading" style="color:var(--muted)">No matches found yet — invite friends or check back soon! 🌱</div>';
+    return;
+  }
+
+  // Score matches by shared habit count
+  const scoreMap = {};
+  matches.forEach(m => {
+    if (!m.profiles) return;
+    const uid = m.user_id;
+    if (!scoreMap[uid]) scoreMap[uid] = { profile: m.profiles, sharedIds: new Set() };
+    scoreMap[uid].sharedIds.add(m.habit_id);
+  });
+
+  const scored = Object.values(scoreMap)
+    .map(({ profile, sharedIds }) => ({ profile, score: Math.round((sharedIds.size / Math.max(myHabitIds.length, 1)) * 100) }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 12);
+
+  document.getElementById('partnersNum').textContent = scored.length;
+  container.innerHTML = '';
+
+  if (scored.length === 0) {
+    container.innerHTML = '<div class="loading" style="color:var(--muted)">No matches yet — be patient as more users join! 🌱</div>';
+    return;
+  }
+
+  // Get my existing connections
+  const { data: myConns } = await db.from('connections').select('to_user').eq('from_user', currentUser.id);
+  const connectedIds = new Set(myConns?.map(c => c.to_user) || []);
+
+  scored.forEach(({ profile, score }) => {
+    const card = document.createElement('div');
+    card.className = 'match-card';
+    const schedLabel = { morning: '🌅 Morning', afternoon: '☀️ Afternoon', evening: '🌙 Evening' }[profile.schedule] || '';
+    const already = connectedIds.has(profile.id);
+    card.innerHTML = `
+      <div class="m-avatar" style="background:var(--surface2)">${profile.avatar_emoji || '🧑'}</div>
+      <div style="flex:1">
+        <div class="m-name">${profile.name || 'Anonymous'}</div>
+        <div class="m-habits">${schedLabel}${profile.location ? ' · ' + profile.location : ''}</div>
+        <span class="m-score">${Math.min(score, 99)}% match</span>
+        <br>
+        <button class="m-connect ${already ? 'sent' : ''}" onclick="connectWith('${profile.id}',this)">
+          ${already ? '✓ Connected' : 'Connect'}
+        </button>
+      </div>
+    `;
+    container.appendChild(card);
+  });
+}
+
+async function connectWith(userId, btn) {
+  btn.textContent = 'Sending...'; btn.disabled = true;
+  const { error } = await db.from('connections').insert({ from_user: currentUser.id, to_user: userId, status: 'pending' });
+  if (error) { btn.textContent = '✓ Connected'; btn.className = 'm-connect sent'; return; }
+  btn.textContent = '✓ Sent!'; btn.className = 'm-connect sent';
+  showToast('Connection request sent! 🤝');
+}
+
+async function loadConnections() {
+  const list = document.getElementById('connectionsList');
+  const { data } = await db.from('connections')
+    .select('to_user, profiles!connections_to_user_fkey(name, avatar_emoji, schedule)')
+    .eq('from_user', currentUser.id);
+
+  if (!data || data.length === 0) { list.innerHTML = '<div class="loading" style="color:var(--muted)">No connections yet. Start matching! 🤝</div>'; return; }
+  list.innerHTML = data.map(c => `
+    <div class="conn-card">
+      <div class="m-avatar" style="background:var(--surface2);width:40px;height:40px;font-size:1.2rem">${c.profiles?.avatar_emoji || '🧑'}</div>
+      <div>
+        <div class="m-name">${c.profiles?.name || 'User'}</div>
+        <div style="font-size:.78rem;color:var(--muted)">${c.profiles?.schedule || ''}</div>
+      </div>
+      <div class="conn-streak">Partner ✓</div>
+    </div>
+  `).join('');
+}
+
+// ── Toast
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+</script>
+</body>
+</html>
